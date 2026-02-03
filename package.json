@@ -1,0 +1,13 @@
+{
+  "name": "node-ftp",
+  "version": "1.0.0",
+  "description": "TCP Client-Server with File Transfer",
+  "main": "src/server/index.js",
+  "type": "module",
+  "scripts": {
+    "server": "node src/server/index.js",
+    "client": "node src/client/index.js",
+    "dev:server": "node --watch src/server/index.js",
+    "dev:client": "node --watch src/client/index.js"
+  }
+}
