@@ -11,7 +11,9 @@ export default class Server {
 
   async handleCommand(session, commandName, args) {
     const response = await this.commandRegistry.execute(commandName, session, args);
-    session.send(response + '\r\n');
+    if (response !== null && response !== undefined) {
+      session.send(response + '\r\n');
+    }
   }
 
   async start(port) {

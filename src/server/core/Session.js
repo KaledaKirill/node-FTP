@@ -5,6 +5,7 @@ export default class Session {
     this.buffer = '';
     this.shouldClose = false;
     this.transferState = null;
+    this.transferHandler = null;
   }
 
   send(data) {
@@ -29,5 +30,20 @@ export default class Session {
 
   clearTransferState() {
     this.transferState = null;
+  }
+
+  setTransferHandler(handler) {
+    this.transferHandler = handler;
+  }
+
+  getTransferHandler() {
+    return this.transferHandler;
+  }
+
+  clearTransferHandler() {
+    if (this.transferHandler) {
+      this.transferHandler.cleanup();
+      this.transferHandler = null;
+    }
   }
 }

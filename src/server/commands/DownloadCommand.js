@@ -1,4 +1,5 @@
 import BaseCommand from './BaseCommand.js';
+import TcpDownloadHandler from '../transfers/TcpDownloadHandler.js';
 import { buildFileHeader } from '../../common/fileTransfer.js';
 
 export default class DownloadCommand extends BaseCommand {
@@ -21,22 +22,19 @@ export default class DownloadCommand extends BaseCommand {
     const filePath = this.fileManager.getFilePath(filename);
     const fileSize = this.fileManager.getFileSize(filename);
 
-    // Приоритет: клиентский offset > сохраненное состояние сервера > 0
     const clientOffset = parseInt(args[1], 10) || 0;
     const resumeState = this.fileManager.getDownloadState(session.clientId, filename);
 
     let offset;
     if (clientOffset > 0) {
-      // Клиент сообщает о размере локального файла
       offset = clientOffset;
     } else if (resumeState) {
-      // Используем сохраненное состояние с сервера
       offset = resumeState.offset;
     } else {
       offset = 0;
     }
 
-    session.setTransferState({
+    const transferState = {
       type: 'download',
       filename,
       filePath,
@@ -44,14 +42,17 @@ export default class DownloadCommand extends BaseCommand {
       fileSize,
       startTime: Date.now(),
       bytesSent: offset
-    });
+    };
 
     const header = buildFileHeader(filename, fileSize, offset);
-
-    // Отправляем заголовок файла БЕЗ текстового сообщения, чтобы не смешивать с данными
     session.sendRaw(header);
 
-    // Не отправляем сообщение здесь, так как оно будет смешано с файловыми данными
+    const handler = new TcpDownloadHandler(session, this.fileManager, transferState);
+    session.setTransferHandler(handler);
+    session.setTransferState(transferState);
+
+    await handler.start();
+
     return null;
   }
 }

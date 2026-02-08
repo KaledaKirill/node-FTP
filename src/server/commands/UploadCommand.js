@@ -1,4 +1,5 @@
 import BaseCommand from './BaseCommand.js';
+import TcpUploadHandler from '../transfers/TcpUploadHandler.js';
 
 export default class UploadCommand extends BaseCommand {
   constructor(fileManager, storageDir) {
@@ -19,14 +20,20 @@ export default class UploadCommand extends BaseCommand {
     const resumeState = this.fileManager.getUploadState(session.clientId, filename);
     const offset = resumeState ? resumeState.offset : existingSize;
 
-    session.setTransferState({
+    const transferState = {
       type: 'upload',
       filename,
       filePath,
       offset,
       startTime: null,
       bytesReceived: offset
-    });
+    };
+
+    const handler = new TcpUploadHandler(session, this.fileManager, transferState);
+    session.setTransferHandler(handler);
+    session.setTransferState(transferState);
+
+    await handler.start();
 
     return `READY ${offset}`;
   }
