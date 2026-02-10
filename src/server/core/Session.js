@@ -9,14 +9,17 @@ export default class Session {
   }
 
   send(data) {
+    console.log(`[Session] Sending to ${this.clientId}:`, data.trim());
     this.socket.write(data);
   }
 
   sendRaw(buffer) {
+    console.log(`[Session] Sending raw data to ${this.clientId}: ${buffer.length} bytes`);
     this.socket.write(buffer);
   }
 
   close() {
+    console.log(`[Session] Closing connection for client ${this.clientId}`);
     this.socket.end();
   }
 
@@ -29,10 +32,12 @@ export default class Session {
   }
 
   clearTransferState() {
+    console.log(`[Session] Clearing transfer state for ${this.clientId}`);
     this.transferState = null;
   }
 
   setTransferHandler(handler) {
+    console.log(`[Session] Setting transfer handler for ${this.clientId}: ${handler?.constructor?.name}`);
     this.transferHandler = handler;
   }
 
@@ -42,6 +47,7 @@ export default class Session {
 
   clearTransferHandler() {
     if (this.transferHandler) {
+      console.log(`[Session] Clearing transfer handler for ${this.clientId}`);
       this.transferHandler.cleanup();
       this.transferHandler = null;
     }

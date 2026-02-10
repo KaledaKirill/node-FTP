@@ -19,12 +19,14 @@ export default class TransferHandler {
   }
 
   complete() {
+    console.log(`[TransferHandler] ${this.session.clientId}: Transfer completed - ${this.state.type} '${this.state.filename}'`);
     this.isActive = false;
     this.session.clearTransferState();
     this.fileManager.clearTransferState(this.session.clientId, this.state.filename);
   }
 
   cleanup() {
+    console.log(`[TransferHandler] ${this.session.clientId}: Transfer cleanup - ${this.state?.type || 'unknown'}`);
     this.isActive = false;
   }
 }

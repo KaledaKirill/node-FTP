@@ -12,10 +12,14 @@ export default class DownloadCommand extends BaseCommand {
     const filename = args[0];
 
     if (!filename) {
+      console.warn(`[DownloadCommand] Missing filename argument from ${session.clientId}`);
       return 'Usage: DOWNLOAD <filename>';
     }
 
+    console.log(`[DownloadCommand] ${session.clientId}: Requested download of '${filename}'`);
+
     if (!this.fileManager.fileExists(filename)) {
+      console.warn(`[DownloadCommand] ${session.clientId}: File '${filename}' not found`);
       return `Error: File '${filename}' not found`;
     }
 
@@ -28,10 +32,13 @@ export default class DownloadCommand extends BaseCommand {
     let offset;
     if (clientOffset > 0) {
       offset = clientOffset;
+      console.log(`[DownloadCommand] ${session.clientId}: Using client offset: ${offset}`);
     } else if (resumeState) {
       offset = resumeState.offset;
+      console.log(`[DownloadCommand] ${session.clientId}: Resuming from saved state: offset=${offset}`);
     } else {
       offset = 0;
+      console.log(`[DownloadCommand] ${session.clientId}: Starting fresh download from beginning`);
     }
 
     const transferState = {
@@ -43,6 +50,8 @@ export default class DownloadCommand extends BaseCommand {
       startTime: Date.now(),
       bytesSent: offset
     };
+
+    console.log(`[DownloadCommand] ${session.clientId}: Initiating download transfer - file: ${filename}, size: ${fileSize} bytes, offset: ${offset}`);
 
     const header = buildFileHeader(filename, fileSize, offset);
     session.sendRaw(header);

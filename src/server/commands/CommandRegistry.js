@@ -23,9 +23,17 @@ export default class CommandRegistry {
     const command = this.get(commandName);
 
     if (!command) {
+      console.warn(`[CommandRegistry] Unknown command '${commandName}' from client ${session.clientId}`);
       return `Error: Unknown command '${commandName}'`;
     }
 
-    return await command.execute(session, args);
+    try {
+      const result = await command.execute(session, args);
+      console.log(`[CommandRegistry] Command '${commandName}' executed successfully for client ${session.clientId}`);
+      return result;
+    } catch (error) {
+      console.error(`[CommandRegistry] Error executing command '${commandName}' for client ${session.clientId}:`, error.message);
+      return `Error: ${error.message}`;
+    }
   }
 }

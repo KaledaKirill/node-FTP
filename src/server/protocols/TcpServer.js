@@ -12,36 +12,45 @@ export default class TcpServer extends Server {
   }
 
   async start(port) {
+    console.log(`[TcpServer] Starting TCP server on port ${port}`);
     this.server = net.createServer((socket) => {
       const clientId = `${socket.remoteAddress}:${socket.remotePort}`;
+      console.log(`[TcpServer] New client connected: ${clientId}`);
       const session = new Session(socket, clientId);
       this.sessions.set(clientId, session);
 
       socket.setKeepAlive(true, 30000);
 
       socket.on('data', (data) => {
+        console.log(`[TcpServer] Received data from ${clientId}: ${data.length} bytes`);
         this.handleData(session, data);
       });
 
       socket.on('close', async () => {
+        console.log(`[TcpServer] Client disconnected: ${clientId}`);
         await this.handleTransferInterrupted(session);
         this.sessions.delete(clientId);
       });
 
       socket.on('error', async (err) => {
-        console.error(`Client ${clientId} error:`, err.message);
+        console.error(`[TcpServer] Client ${clientId} error:`, err.message);
         await this.handleTransferInterrupted(session);
         this.sessions.delete(clientId);
       });
     });
 
     this.server.listen(port, () => {
-      console.log(`TCP Server listening on port ${port}`);
+      console.log(`[TcpServer] TCP Server listening on port ${port}`);
+    });
+
+    this.server.on('error', (err) => {
+      console.error('[TcpServer] Server error:', err.message);
     });
   }
 
   async handleData(session, data) {
     if (this._hasActiveTransfer(session)) {
+      console.log(`[TcpServer] ${session.clientId}: Processing transfer data (${data.length} bytes)`);
       await session.getTransferHandler().handleData(data);
       return;
     }
@@ -62,6 +71,7 @@ export default class TcpServer extends Server {
       const { buffer, commands } = parseMessages(session.buffer, dataStr);
       session.buffer = buffer;
 
+      console.log(`[TcpServer] ${session.clientId}: Parsed ${commands.length} command(s) from data`);
       for (const cmd of commands) {
         const { name, args } = parseCommand(cmd);
         await this.handleCommand(session, name, args);
@@ -72,17 +82,20 @@ export default class TcpServer extends Server {
         }
 
         if (this._hasActiveTransfer(session)) {
+          console.log(`[TcpServer] ${session.clientId}: Transfer started, extracting binary data`);
           remainingBinaryData = this._extractBinaryData(data, dataStr, buffer);
           session.buffer = '';
           break;
         }
       }
     } catch (err) {
+      console.error(`[TcpServer] ${session.clientId}: Error processing commands:`, err.message);
       session.send('Error: ' + err.message + '\r\n');
       return;
     }
 
     if (remainingBinaryData && this._hasActiveTransfer(session)) {
+      console.log(`[TcpServer] ${session.clientId}: Sending remaining binary data to transfer handler (${remainingBinaryData.length} bytes)`);
       await session.getTransferHandler().handleData(remainingBinaryData);
     }
   }
@@ -93,6 +106,7 @@ export default class TcpServer extends Server {
   }
 
   async handleTransferInterrupted(session) {
+    console.log(`[TcpServer] ${session.clientId}: Handling interrupted transfer`);
     const transferHandler = session.getTransferHandler();
 
     if (transferHandler && transferHandler.isActive) {
