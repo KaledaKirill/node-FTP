@@ -18,13 +18,13 @@ export default class DownloadCommand extends BaseCommand {
 
     console.log(`[DownloadCommand] ${session.clientId}: Requested download of '${filename}'`);
 
-    if (!this.fileManager.fileExists(filename)) {
+    const filePath = this.fileManager.getFilePath(filename);
+    const fileSize = this.fileManager.getFileSize(filename);
+
+    if (!fileSize) {
       console.warn(`[DownloadCommand] ${session.clientId}: File '${filename}' not found`);
       return `Error: File '${filename}' not found`;
     }
-
-    const filePath = this.fileManager.getFilePath(filename);
-    const fileSize = this.fileManager.getFileSize(filename);
 
     const clientOffset = parseInt(args[1], 10) || 0;
     const resumeState = this.fileManager.getDownloadState(session.clientId, filename);

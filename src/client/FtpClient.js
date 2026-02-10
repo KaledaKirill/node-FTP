@@ -15,7 +15,7 @@ export default class FtpClient {
   }
 
   async connect() {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
       this.socket = net.createConnection(this.port, this.host, () => {
         console.log(`Connected to ${this.host}:${this.port}`);
         resolve();
@@ -40,6 +40,22 @@ export default class FtpClient {
   _handleData(data) {
     // If active transfer handler, delegate to it
     if (this.transferHandler && this.transferHandler.isActive) {
+      this.transferHandler.handleData(data);
+      return;
+    }
+
+    // Check if we have a pending download handler that's not yet active
+    if (this.transferHandler && !this.transferHandler.isActive) {
+      // Check if this is an error response from server
+      const dataStr = data.toString('utf8');
+      if (dataStr.trim().startsWith('Error:')) {
+        // This is an error - parse and display it
+        this._parseServerResponses(data);
+        this.transferHandler = null;
+        return;
+      }
+      // Otherwise treat as binary data (file download)
+      this.transferHandler.isActive = true;
       this.transferHandler.handleData(data);
       return;
     }
@@ -83,6 +99,9 @@ export default class FtpClient {
         this.pendingUpload.filename,
         { offset }
       );
+      this.transferHandler.onComplete = () => {
+        this.transferHandler = null;
+      };
       this.transferHandler.start();
       this.pendingUpload = null;
     }
@@ -98,6 +117,9 @@ export default class FtpClient {
       downloadInfo.filename,
       downloadInfo
     );
+    this.transferHandler.onComplete = () => {
+      this.transferHandler = null;
+    };
     this.transferHandler.start();
   }
 

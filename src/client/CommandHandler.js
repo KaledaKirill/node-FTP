@@ -4,15 +4,26 @@ import { parseCommand } from '../common/protocol.js';
 import { formatFileSize } from '../common/fileTransfer.js';
 import readline from 'readline';
 
+const CLIENT_STORAGE_DIR = './client-storage';
+
 export default class CommandHandler {
   constructor(client) {
     this.client = client;
+    this.storageDir = path.resolve(CLIENT_STORAGE_DIR);
+    this._ensureStorageDir();
     this.rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout
     });
 
     this._setupCommandHandlers();
+  }
+
+  _ensureStorageDir() {
+    if (!fs.existsSync(this.storageDir)) {
+      fs.mkdirSync(this.storageDir, { recursive: true });
+      console.log(`Created client storage directory: ${this.storageDir}`);
+    }
   }
 
   _setupCommandHandlers() {
@@ -50,12 +61,14 @@ export default class CommandHandler {
       return;
     }
 
-    if (!fs.existsSync(filename)) {
-      console.log(`Error: File '${filename}' not found`);
+    const filePath = path.join(this.storageDir, path.basename(filename));
+
+    if (!fs.existsSync(filePath)) {
+      console.log(`Error: File '${filename}' not found in client storage (${this.storageDir})`);
       return;
     }
 
-    const stats = fs.statSync(filename);
+    const stats = fs.statSync(filePath);
     if (stats.isDirectory()) {
       console.log(`Error: '${filename}' is a directory, not a file`);
       return;
@@ -63,7 +76,7 @@ export default class CommandHandler {
 
     const basename = path.basename(filename);
     this.client.sendCommand(`UPLOAD ${basename}`);
-    this.client.setUpload({ filename, basename });
+    this.client.setUpload({ filename: filePath, basename });
   }
 
   async _handleDownload(args) {
@@ -74,10 +87,12 @@ export default class CommandHandler {
       return;
     }
 
+    const filePath = path.join(this.storageDir, path.basename(filename));
+
     // Check for resume
     let localSize = 0;
-    if (fs.existsSync(filename)) {
-      const stats = fs.statSync(filename);
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
       if (!stats.isDirectory()) {
         localSize = stats.size;
       }
@@ -90,7 +105,7 @@ export default class CommandHandler {
       this.client.sendCommand(`DOWNLOAD ${filename}`);
     }
 
-    this.client.setDownload({ filename });
+    this.client.setDownload({ filename: filePath });
   }
 
   close() {

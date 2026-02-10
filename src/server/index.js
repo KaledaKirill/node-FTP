@@ -7,7 +7,7 @@ import UploadCommand from './commands/UploadCommand.js';
 import DownloadCommand from './commands/DownloadCommand.js';
 
 const PORT = process.env.PORT || 3000;
-const STORAGE_DIR = process.env.STORAGE_DIR || './storage';
+const STORAGE_DIR = process.env.STORAGE_DIR || './server-storage';
 
 console.log('='.repeat(50));
 console.log('[Server] Initializing FTP Server');

@@ -4,6 +4,7 @@ export default class ClientTransferHandler {
     this.filename = filename;
     this.config = config;
     this.isActive = false;
+    this.onComplete = null;
   }
 
   start() {
@@ -16,6 +17,9 @@ export default class ClientTransferHandler {
 
   complete() {
     this.isActive = false;
+    if (this.onComplete) {
+      this.onComplete();
+    }
   }
 
   abort() {

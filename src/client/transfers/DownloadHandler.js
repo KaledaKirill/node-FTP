@@ -5,17 +5,23 @@ import { parseFileHeader, calcBitrate, formatBitrate, formatFileSize } from '../
 export default class DownloadHandler extends ClientTransferHandler {
   constructor(socket, filename, config) {
     super(socket, filename, config);
+    this.savePath = filename; // Store the full path where file should be saved
     this.headerBuffer = null;
     this.fileHandle = null;
   }
 
   start() {
-    this.isActive = true;
+    // Don't set isActive yet - wait for binary data to confirm successful download
     // Download doesn't need explicit start - waits for data from server
     this.headerBuffer = Buffer.alloc(0);
   }
 
   handleData(data) {
+    // Mark handler as active once we receive binary data
+    if (!this.isActive) {
+      this.isActive = true;
+    }
+
     if (!this.fileHandle) {
       // First phase: parse header
       if (!this.headerBuffer) {
@@ -39,7 +45,8 @@ export default class DownloadHandler extends ClientTransferHandler {
       this.startTime = Date.now();
 
       const flags = this.resumeOffset > 0 ? 'r+' : 'w';
-      this.fileHandle = fs.createWriteStream(this.filename, { flags, start: this.resumeOffset });
+      // Use savePath for the actual file location
+      this.fileHandle = fs.createWriteStream(this.savePath, { flags, start: this.resumeOffset });
 
       if (remaining.length > 0) {
         this.fileHandle.write(remaining);
@@ -71,7 +78,7 @@ export default class DownloadHandler extends ClientTransferHandler {
     const endTime = Date.now();
     const bytesDownloaded = this.bytesReceived - this.resumeOffset;
     const bitrate = calcBitrate(this.startTime, endTime, bytesDownloaded);
-    console.log(`Download complete: ${this.filename} (${formatFileSize(this.bytesReceived)}) - Speed: ${formatBitrate(bitrate)}`);
+    console.log(`Download complete: ${this.savePath} (${formatFileSize(this.bytesReceived)}) - Speed: ${formatBitrate(bitrate)}`);
 
     this.complete();
   }
