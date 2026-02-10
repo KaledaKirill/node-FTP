@@ -2,6 +2,7 @@ import net from 'net';
 import { parseMessages, parseCommand } from '../common/protocol.js';
 import UploadHandler from './transfers/UploadHandler.js';
 import DownloadHandler from './transfers/DownloadHandler.js';
+import { formatFileSize } from '../common/fileTransfer.js';
 
 export default class FtpClient {
   constructor(host, port) {
@@ -87,7 +88,6 @@ export default class FtpClient {
     const offset = parseInt(args[0], 10) || 0;
 
     if (offset > 0) {
-      const { formatFileSize } = require('../common/fileTransfer.js');
       console.log(`Server: READY to resume from offset ${formatFileSize(offset)} (${offset} bytes)`);
     } else {
       console.log(`Server: READY`);

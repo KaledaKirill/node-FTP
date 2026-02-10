@@ -22,7 +22,6 @@ export default class TcpServer extends Server {
       socket.setKeepAlive(true, 30000);
 
       socket.on('data', (data) => {
-        console.log(`[TcpServer] Received data from ${clientId}: ${data.length} bytes`);
         this.handleData(session, data);
       });
 
@@ -50,7 +49,6 @@ export default class TcpServer extends Server {
 
   async handleData(session, data) {
     if (this._hasActiveTransfer(session)) {
-      console.log(`[TcpServer] ${session.clientId}: Processing transfer data (${data.length} bytes)`);
       await session.getTransferHandler().handleData(data);
       return;
     }
