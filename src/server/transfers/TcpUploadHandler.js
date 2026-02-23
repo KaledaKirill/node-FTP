@@ -63,7 +63,19 @@ export default class TcpUploadHandler extends TransferHandler {
   }
 
   async _writeDataChunk(data) {
-    this.state.fileHandle.write(data);
+    // Wait for write to complete before continuing
+    await new Promise((resolve, reject) => {
+      const written = this.state.fileHandle.write(data, (err) => {
+        if (err) reject(err);
+        else resolve();
+      });
+
+      // If false, the stream's internal buffer is full - wait for drain
+      if (!written) {
+        this.state.fileHandle.once('drain', resolve);
+      }
+    });
+
     this.state.bytesReceived += data.length;
 
     if (this.state.bytesReceived >= this.state.fileSize) {

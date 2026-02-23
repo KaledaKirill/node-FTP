@@ -12,20 +12,50 @@ export default class TcpDownloadHandler extends TransferHandler {
     this.isActive = true;
     this.state.startTime = Date.now();
     this.state.bytesSent = this.state.offset || 0;
+    this.isPaused = false;
+    this.pauseCount = 0; // Track number of pauses for logging
 
     try {
       this.readStream = fs.createReadStream(this.state.filePath, {
-        start: this.state.offset
+        start: this.state.offset,
+        highWaterMark: 256 * 1024 // 256KB chunks - better balance for network transfers
+      });
+
+      // Set up drain handler before starting to read
+      this.session.socket.on('drain', () => {
+        if (this.isPaused && this.isActive) {
+          this.readStream.resume();
+          this.isPaused = false;
+        }
       });
 
       this.readStream.on('data', (chunk) => {
-        this.session.sendRaw(chunk);
+        // Check if socket is ready to accept more data
+        const canWrite = this.session.socket.write(chunk);
+
         this.state.bytesSent += chunk.length;
-        this.fileManager.saveDownloadState(
-          this.session.clientId,
-          this.state.filename,
-          this.state.bytesSent
-        );
+
+        // Save progress state less frequently to reduce I/O
+        if (this.state.bytesSent % (1024 * 1024) === 0 || this.state.bytesSent === this.state.fileSize) {
+          this.fileManager.saveDownloadState(
+            this.session.clientId,
+            this.state.filename,
+            this.state.bytesSent
+          );
+        }
+
+        // If socket buffer is full, pause reading until drain event
+        if (!canWrite) {
+          this.readStream.pause();
+          this.isPaused = true;
+          this.pauseCount++;
+
+          // Only log every 100 pauses to reduce log spam
+          if (this.pauseCount % 100 === 0) {
+            const progress = ((this.state.bytesSent / this.state.fileSize) * 100).toFixed(1);
+            console.log(`[TcpDownloadHandler] ${this.session.clientId}: Flow control active - ${progress}% complete (${this.state.bytesSent}/${this.state.fileSize} bytes)`);
+          }
+        }
       });
 
       this.readStream.on('end', () => {
@@ -49,9 +79,16 @@ export default class TcpDownloadHandler extends TransferHandler {
     }
   }
 
-  async handleData(data) {
+  async handleData(_data) {
     // Download doesn't handle incoming data from client
     // This is a no-op for downloads
+  }
+
+  complete() {
+    // Remove drain event listener
+    this.session.socket.removeAllListeners('drain');
+    // Call parent complete
+    super.complete();
   }
 
   async interrupt() {
@@ -59,6 +96,9 @@ export default class TcpDownloadHandler extends TransferHandler {
     if (this.readStream) {
       this.readStream.destroy();
     }
+
+    // Remove drain event listener
+    this.session.socket.removeAllListeners('drain');
 
     const actualBytesSent = this.state.bytesSent > 0 ? this.state.bytesSent : this.state.offset;
     if (actualBytesSent > 0 && actualBytesSent < this.state.fileSize) {

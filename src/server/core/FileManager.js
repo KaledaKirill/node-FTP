@@ -50,7 +50,6 @@ export default class FileManager {
       offset,
       timestamp: Date.now()
     });
-    console.log(`[FileManager] Saved upload state for '${filename}' from ${clientId}: offset=${offset}`);
   }
 
   getUploadState(clientId, filename) {
@@ -70,7 +69,6 @@ export default class FileManager {
       offset,
       timestamp: Date.now()
     });
-    console.log(`[FileManager] Saved download state for '${filename}' from ${clientId}: offset=${offset}`);
   }
 
   getDownloadState(clientId, filename) {

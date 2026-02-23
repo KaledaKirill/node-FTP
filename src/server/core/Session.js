@@ -14,7 +14,6 @@ export default class Session {
   }
 
   sendRaw(buffer) {
-    console.log(`[Session] Sending raw data to ${this.clientId}: ${buffer.length} bytes`);
     this.socket.write(buffer);
   }
 

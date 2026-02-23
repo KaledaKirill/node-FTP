@@ -8,6 +8,7 @@ export default class DownloadHandler extends ClientTransferHandler {
     this.savePath = filename; // Store the full path where file should be saved
     this.headerBuffer = null;
     this.fileHandle = null;
+    this.isPaused = false;
   }
 
   start() {
@@ -45,11 +46,27 @@ export default class DownloadHandler extends ClientTransferHandler {
       this.startTime = Date.now();
 
       const flags = this.resumeOffset > 0 ? 'r+' : 'w';
-      // Use savePath for the actual file location
-      this.fileHandle = fs.createWriteStream(this.savePath, { flags, start: this.resumeOffset });
+      // Use savePath for the actual file location with larger buffer
+      this.fileHandle = fs.createWriteStream(this.savePath, {
+        flags,
+        start: this.resumeOffset,
+        highWaterMark: 1024 * 1024 // 1MB buffer for better performance
+      });
+
+      // Set up drain handler to resume socket reading
+      this.fileHandle.on('drain', () => {
+        if (this.isPaused) {
+          this.socket.resume();
+          this.isPaused = false;
+        }
+      });
 
       if (remaining.length > 0) {
-        this.fileHandle.write(remaining);
+        const canWrite = this.fileHandle.write(remaining);
+        if (!canWrite) {
+          this.socket.pause();
+          this.isPaused = true;
+        }
       }
 
       if (this.resumeOffset > 0) {
@@ -63,9 +80,15 @@ export default class DownloadHandler extends ClientTransferHandler {
       return;
     }
 
-    // Second phase: write data
+    // Second phase: write data with backpressure handling
     this.bytesReceived += data.length;
-    this.fileHandle.write(data);
+    const canWrite = this.fileHandle.write(data);
+
+    if (!canWrite) {
+      // File write buffer is full, pause socket reading
+      this.socket.pause();
+      this.isPaused = true;
+    }
 
     if (this.bytesReceived >= this.fileSize) {
       this._finalizeDownload();

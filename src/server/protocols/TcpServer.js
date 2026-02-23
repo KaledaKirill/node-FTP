@@ -20,6 +20,7 @@ export default class TcpServer extends Server {
       this.sessions.set(clientId, session);
 
       socket.setKeepAlive(true, 30000);
+      socket.setTimeout(300000); // 5 minute timeout for inactive connections
 
       socket.on('data', (data) => {
         this.handleData(session, data);
@@ -34,6 +35,13 @@ export default class TcpServer extends Server {
       socket.on('error', async (err) => {
         console.error(`[TcpServer] Client ${clientId} error:`, err.message);
         await this.handleTransferInterrupted(session);
+        this.sessions.delete(clientId);
+      });
+
+      socket.on('timeout', async () => {
+        console.warn(`[TcpServer] Client ${clientId} connection timed out`);
+        await this.handleTransferInterrupted(session);
+        socket.destroy();
         this.sessions.delete(clientId);
       });
     });
